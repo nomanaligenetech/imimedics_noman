@@ -378,8 +378,8 @@ table.family_relationships .family-editing input, table.family_relationships .fa
 
 
 .wrapper-dropdown { position: absolute; display: inline-block; min-width: 215px; padding: 0 5px 0 14px; border-radius: 0px; background: #5E8BBA; text-align: left; line-height: 33px; color: #444; cursor: pointer; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; z-index: 9999;
-    margin-top: -59px;
-    margin-left: 21px; 
+    margin-top: 0px;
+    margin-left: 11px; 
 }
 .wrapper-dropdown span{font-size: 14px; font-weight: 700; color: #fff;}
 .wrapper-dropdown::after{ content: ""; background-color: rgba(0,0,0,0.10); width: 30px; position: absolute; height: 100%; right: 0px; z-index: -1; }
@@ -415,4 +415,42 @@ table.family_relationships .family-editing input, table.family_relationships .fa
     .advanceSearchRow .advanceFunctionContent .detailContent::before { height: 1px; width: calc(100% + 20px); left: -10px; top: 0px; }
 }
 
+/* Elsa's css*/
+.adv-search-form .invalid-feedback1 {margin-left: 0;}
+.adv-search-form .invalid-feedback {margin-left: 0;top: unset;bottom: -20px;}
+.adv-search-form .parameter {position: relative;}
+.advanceSearchRow button.btn.btn-primary {margin-top: 10px;}
 
+.adv-search-form .checkbox-container{display: flex;justify-content: space-between;}
+
+.adv-search-form .checkbox-container {
+    display: flex;justify-content: flex-start;flex-wrap: wrap;
+}
+
+.adv-search-form .form-check {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;margin-right: 20px;margin-bottom:5px;
+}
+
+.adv-search-form .form-check .iradio_minimal {
+    display: flex;
+    align-items: center;
+}
+
+.advanceSearchRow .advanceFunctionContent .detailContent .adv-search-form .parameter label.form-check-label {margin-bottom: 0;margin-left: 5px;}
+.adv-search-form input.form-check-input {width: 18px;height: 18px;background: rgb(255, 255, 255);border: none;cursor: pointer;}
+.adv-search-form .checkbox-container-payment {display: flex;flex-wrap: wrap;}
+
+/*Media Queries*/
+@media(max-width:1440px){
+    .adv-search-form .invalid-feedback{top:65px;}
+}
+@media(max-width:1167px){
+    .advanceSearchRow .advanceFunctionContent .detailContent .adv-search-form .parameter label {margin-top: 10px;}
+    /*.adv-search-form .invalid-feedback{top:70px;}*/
+    .adv-search-form .invalid-feedback {top: unset;bottom: -20px;}
+}
+#dtBasicExample_wrapper{
+    display: none;
+}

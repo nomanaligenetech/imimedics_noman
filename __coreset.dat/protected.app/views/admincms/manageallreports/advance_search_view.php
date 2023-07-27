@@ -91,21 +91,20 @@
     </div>
   </div>
      <br>
+</div>
   <div class="advanceSearchReportTable">
-    <div class="spinner-border">
+     <!--  <div class="spinner-border">
           <i class="busy"></i>
-        </div>
+        </div> -->
+
       <!-- Download DropDown -->
       <div class="wrapper-dropdown " id="myDropdown" style="display: none;">
         <span>Download</span>
         <ul class="dropdown">
           <li id="downloadCSV" class="download_csv"  data-value="csvdownload">Download CSV</li>
-<!--           <li id="downloadPaypalCSV" class="download_csv"  data-value="paypalcsvdownload"> Download Paypal CSV</li>
-          <li id="downloadPayeezyCSV" class="download_csv"  data-value="payeezycsvdownload"> Download Payeezy CSV</li> -->
         </ul>
       </div>
       <div class="table-responsive adv-search-table">
-
 
         <table style="display: none;" id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
        <div class="spinner-grow text-primary loader" style="display: none;"></div>
@@ -352,7 +351,7 @@ function validateFields() {
   event.preventDefault(); 
   $
   // validateFields();
-  $('.spinner-border').show();
+  // $('.spinner-border').show();
    formData = $(this).serializeArray();
     
   $.ajax({
@@ -369,8 +368,8 @@ function validateFields() {
      if (response && Array.isArray(response.table_record)) {
           var tableBody = $('#tableBody');
           tableBody.empty(); // Clear existing table rows
-          $('.spinner-border').hide();
-          
+          // $('.spinner-border').hide();
+
           $.each(response.table_record, function(index, row) {
             var tableRow = '<tr>' +
               '<td>' + row.card_holder_name + '</td>' +
@@ -410,16 +409,16 @@ function validateFields() {
               '</tr>';
 
             tableBody.append(tableRow);
-          $('.spinner-border').hide();
+          // $('.spinner-border').hide();
 
           });
         } else {
-          $('.spinner-border').hide();
+          // $('.spinner-border').hide();
           console.error('Invalid response format or empty table_record array.');
         }
       } catch (err) {
         console.error('Error occurred while processing the response:', err);
-      $('.spinner-border').hide();
+      // $('.spinner-border').hide();
 
 
       }
