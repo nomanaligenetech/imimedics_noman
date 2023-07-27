@@ -454,3 +454,57 @@ table.family_relationships .family-editing input, table.family_relationships .fa
 #dtBasicExample_wrapper{
     display: none;
 }
+
+
+ .background-div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8); /* Adjust the RGBA color as needed */
+    z-index: 9998; /* Ensure the background div is below the spinner but above other content */
+    display: none;
+  }
+
+  /* Spinner Styles */
+  .loader {
+    border: 4px solid rgba(0, 0, 0, 0.3);
+    border-top: 4px solid #007bff; /* Adjust the color to your preference */
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    display: none;
+
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Additional Styles */
+  .advanceSearchReportTable {
+    position: relative; /* Ensure that the spinner is positioned relative to this container */
+  }
+
+  .table-responsive.adv-search-table {
+    position: relative; /* Ensure that the spinner is positioned relative to this container */
+  }
+
+#dtBasicExample_filter{
+    display: none;
+}
+#dtBasicExample_length{
+    margin-left: 245px;
+}

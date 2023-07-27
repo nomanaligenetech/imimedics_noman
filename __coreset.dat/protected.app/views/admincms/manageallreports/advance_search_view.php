@@ -96,6 +96,11 @@
      <!--  <div class="spinner-border">
           <i class="busy"></i>
         </div> -->
+        <div class="background-div">
+          <!-- <div class="spinner-grow text-primary loader"></div> -->
+        </div>
+
+  
 
       <!-- Download DropDown -->
       <div class="wrapper-dropdown " id="myDropdown" style="display: none;">
@@ -143,9 +148,7 @@
       DownloadCsv(csv_type);
 
     });
-    // $('#downloadCSV').click(function() {
-    //   DownloadCsv();
-    // });
+   
       $('#dtBasicExample').DataTable();
       $('.dataTables_length').addClass('bs-select');
       $(function() {
@@ -351,7 +354,9 @@ function validateFields() {
   event.preventDefault(); 
   $
   // validateFields();
-  // $('.spinner-border').show();
+    $('.background-div').show();
+    $('.loader').show();
+  
    formData = $(this).serializeArray();
     
   $.ajax({
@@ -360,16 +365,13 @@ function validateFields() {
     data: formData,
     success: function(response) {
       // console.log(response);
-    $('#myDropdown').show();
-    $('#dtBasicExample_wrapper').show();
-    $('#dtBasicExample').show();
       try {
 
      if (response && Array.isArray(response.table_record)) {
           var tableBody = $('#tableBody');
           tableBody.empty(); // Clear existing table rows
-          // $('.spinner-border').hide();
-
+          $('.background-div').hide();
+          $('.loader').hide();
           $.each(response.table_record, function(index, row) {
             var tableRow = '<tr>' +
               '<td>' + row.card_holder_name + '</td>' +
@@ -408,24 +410,35 @@ function validateFields() {
             tableRow += '<td>' + row.reconciliation_status + '</td>' +
               '</tr>';
 
-            tableBody.append(tableRow);
-          // $('.spinner-border').hide();
+              tableBody.append(tableRow);
+              $('#myDropdown').show();
+              $('#dtBasicExample_wrapper').show();
+              $('#dtBasicExample').show();
+            $('.background-div').hide();
+             $('.loader').hide();
+
+            
 
           });
         } else {
-          // $('.spinner-border').hide();
+          $('.background-div').hide();
+          $('.loader').hide();
+
           console.error('Invalid response format or empty table_record array.');
         }
       } catch (err) {
         console.error('Error occurred while processing the response:', err);
-      // $('.spinner-border').hide();
+          $('.background-div').hide();
+          $('.loader').hide();
 
 
       }
     },
     error: function(xhr, textStatus, errorThrown) {
       // Handle any errors that occurred during the AJAX request
-      $('.spinner-border').hide();
+      $('.background-div').hide();
+          $('.loader').hide();
+
       console.error('AJAX Error:', errorThrown);
     }
   });
