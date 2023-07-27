@@ -545,7 +545,12 @@ class Controls_Include extends C_admincms {
 
 
 
+// echo "<pre>";
+// print_r($view_data);
 
+
+
+// die;
 		$final_data = [];
 
 		
@@ -2043,6 +2048,72 @@ class Controls_Include extends C_admincms {
 				
 			}/* die; */
 
+			return $final_data;
+		}
+
+	}
+	// public function fetch_csv_paypal_filter($sqlQuery)
+	// {
+
+	// }
+	// public function fetch_csv_payeezy_filter($sqlQuery)
+	// {
+
+	// }
+	public function fetch_csv_download_filter($sqlQuery)
+	{
+		$view_data = $this->db->query($sqlQuery);
+
+		$final_data = [];
+
+		if($view_data->num_rows()>0){
+			$data_for_view    = $view_data->result_array();
+			
+			
+			foreach($data_for_view as $data_per_view_row){
+
+			
+				if($data_per_view_row['amount'] < 0){
+					continue;
+				}
+
+				$status       = $data_per_view_row['status'] == 'S' ? 'Paid' : $data_per_view_row['status'];
+				$payment_mode = $data_per_view_row['payment_mode'] == 'T0007' ? 'onetime' : ($data_per_view_row['payment_mode'] == 'T0002' ? 'recurring' : $data_per_view_row['payment_mode']);
+				$payment_method = $data_per_view_row['payment_method'] == 'card' ? 'payeezy' : $data_per_view_row['payment_method'];
+
+				$date_tempp = $data_per_view_row['Date'];  
+				$date_temp  = new DateTime($date_tempp);
+			
+
+				$final_data[] = [
+						"card_holder_name"   	=> $data_per_view_row['card_holder_name'],
+						"full_name"          	=> $data_per_view_row['name'],
+						"transaction_amount" 	=> round($data_per_view_row['amount'], 2),
+						"date"               	=> $date_temp->format('Y-m-d'),
+						"purpose" 			 	=> !empty($data_per_view_row['pkg_title']) ? $data_per_view_row['pkg_title'] : $data_per_view_row['dpdesc'],
+						"payment_method"     	=> $data_per_view_row['payment_method'],
+						"donation_mode"      	=> $payment_mode,
+						"country_name"       	=> $data_per_view_row['country_name'],
+						"email_address"      	=> $data_per_view_row['email_address'],
+						"transaction_status" 	=> $status,
+						"tax_receipt"        	=> $data_per_view_row['tax_receipt_num'],
+						"reconciliation_status" => $data_per_view_row['process_status'],
+						"receipt_id"            => $data_per_view_row['id'],
+						"receipt_prefix"        => $data_per_view_row['receipt_prefix'],
+						"receipt_purpose"       => !empty($data_per_view_row['pkg_title']) ? 'eventregistration' : $data_per_view_row['receipt_purpose'],
+						"ref_id"       			=> $data_per_view_row['ref_id'],
+						"home_full_address"     => $data_per_view_row['home_full_address'],
+						"home_city"       		=> $data_per_view_row['home_city'],
+						"home_state_province"   => $data_per_view_row['home_state_province'],
+						"cellphone_number"      => $data_per_view_row['cellphone_number'],
+						"honoree_name"      	=> $data_per_view_row['honoree_name'],
+						"payment_frequency"     => $data_per_view_row['donation_frequency'],
+				];
+				
+			}/* die; */
+
+			// echo "<pre>";
+			// print_r($final_data);
 			return $final_data;
 		}
 

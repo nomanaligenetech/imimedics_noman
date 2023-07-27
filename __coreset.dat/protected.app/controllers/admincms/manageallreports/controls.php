@@ -288,6 +288,13 @@ class Controls extends Controls_Include {
 	}
 
 	public function receipt( $userid, $type='', $recept_num = '', $date = '', $is_bulk = false ){
+
+		// print_r($userid);
+		// print_r($type);
+		// print_r($recept_num);
+		// print_r($date);
+		// print_r($is_bulk);
+		// die;
 		$has_data       = false;
 
 		if($type == 'shortconferencceregistration'){
@@ -470,6 +477,7 @@ class Controls extends Controls_Include {
 				"package_amount"    => isset($package_amount) ? $package_amount : '',
 				"package_title"     => isset($package_title) ? $package_title : '',
 			);
+
 			
 			$file_name = 'tax-receipt-' . $userid . '.pdf';
 			$html_code = '<link rel="preconnect" href="https://fonts.googleapis.com">';
@@ -506,7 +514,7 @@ class Controls extends Controls_Include {
 
 	public function download_csv( $id, $csvtype)
 	{ 
-		$data												= $this->data;
+		$data	= $this->data;
 		
 		
 		header('Content-Type: text/csv; charset=utf-8');
@@ -1109,7 +1117,7 @@ class Controls extends Controls_Include {
 		public function Advance_search_filter()
 		{
 
-				$this->search_page_data	= $this->default_data();
+		$this->search_page_data	= $this->default_data();
  	
 		$this->search_page_data["_directory"]		= $this->router->directory;
 		$this->search_page_data["_pagepath"]		= $this->router->directory . $this->router->class;
@@ -1118,499 +1126,1020 @@ class Controls extends Controls_Include {
 		$this->search_page_data['_pageview']= $this->search_page_data["_directory"] . "advance_search_view.php";
 		$data  = $this->search_page_data;
 		$data['categories'] = $this->search_option_properties();
+			 $searchCategory = $this->input->post('search_category');
+			 $searchValue = $this->input->post('search_value');
+				$from_date =  $_POST['from_date'];
+ 				$to_date = $_POST['to_date'];
+				$finalarray = array();
+				$finalarray['search_category'] = $searchCategory;
 
-		$searchCategory = $this->input->post('search_category');
-		$searchValue = $this->input->post('search_value');
+				$searchValues = array();
+				foreach ($_POST as $key => $value) {
+				    if (strpos($key, 'search_value') === 0) {
+				        $searchValues = array_merge($searchValues, array_filter($value));
+				    }
+				}
+				$searchValueArray['search_value'] = $searchValues;
+				$catequery = "";
+				$filterConditions = array();
+				foreach ($finalarray['search_category'] as $index => $category) {
+				    // Retrieve the corresponding search value for the current category
+				    $value = isset($searchValues[$index]) ? $searchValues[$index] : '';
+				    $operator = !empty($value) ? 'LIKE' : '=';
+				    if ($operator === 'LIKE') {
+				        $value = "%$value%";
+				    }
+				       if ($category === 'category') {
+				        continue;
+				    }
 
-		$filterConditions = array();
 
-		foreach ($searchCategory as $index => $category) {
-		    $value = $searchValue[$index];
+				    $filterConditions[] = "(subquery.$category $operator '$value')";
+				}
+					    if (!empty($from_date) && !empty($to_date)) {
+				    $from_date = date('Y-m-d', strtotime($from_date));
+				    $to_date = date('Y-m-d', strtotime($to_date));
+				    $date_condition = "subquery.Date BETWEEN '$from_date' AND '$to_date'";
+				    $filterConditions[] = $date_condition;
+				}
+					$filterSubquery = implode(' OR ', $filterConditions);
+					$searchValue = $searchValues;
 
-		    $filterConditions[] = "subquery.$category LIKE '%$value%'";
+
+
+			// Separate if conditions for each category
+				foreach ($searchCategory as $index => $category) {
+				    $value = $searchValue[$index];
+
+				    if ($category === 'category') {
+				        // For 'donate'
+				        if ($value === 'donate') {
+					           	$catequery = "SELECT DISTINCT
+						        df.id,
+						        df.first_name AS name,
+						        COALESCE(ptd.card_holder_name, petd.cardholder_name) AS card_holder_name,
+						        COALESCE(ptd.transaction_amount, df.donate_amount, petd.amount) AS amount,
+						        COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME)) AS Date,
+						        dpp.name AS dpdesc,
+						        dp.payment_mode AS payment_method,
+						        df.donation_mode AS payment_mode,
+						        (CASE
+						            WHEN (df.donation_freq = 'M-1') THEN 'Monthly'
+						            WHEN (df.donation_freq = 'M-3') THEN 'Quarterly'
+						            WHEN (df.donation_freq = 'M-6') THEN 'Half Yearly'
+						            ELSE 'Yearly'
+						        END) AS donation_frequency,
+						        df.donate_honoree AS honoree_name,
+						        (CASE WHEN (up.home_full_address IS NULL) THEN df.home_address ELSE up.home_full_address END) AS home_full_address,
+						        up.home_city,
+						        up.home_state_province,
+						        up.cellphone_number,
+						        IFNULL(df.home_zipcode, up.home_zipcode) AS zip,
+						        COALESCE(ptd.email_address, df.email) AS email_address,
+						        (CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END) AS status,
+						        COALESCE(df.tax_receipt_num, dr.receipt_number) AS tax_receipt_num,
+						        dr.receipt_prefix,
+						        (CASE WHEN (dp.payment_mode = 'payeezy') THEN cp.transaction_id ELSE dp.reference_number END) AS ref_id,
+						        'donation' AS receipt_purpose,
+						        (CASE WHEN apc.id IS NOT NULL THEN 'Yes' ELSE 'No' END) AS process_status,
+						        cn.countries_name AS country_name
+						    FROM tb_donation_form df
+						    INNER JOIN tb_donation_payments dp ON df.id = dp.table_id_value AND dp.table_name = 'tb_donation_form'
+						    LEFT JOIN tb_donation_projects dpp ON dpp.id = df.donation_projects_id
+						    LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id AND cp.is_cron = 0
+						    LEFT JOIN tb_event_registrations er ON er.donation_form_id = df.id
+						    LEFT JOIN tb_sitesectionswidgets ssw ON ssw.id = er.event_id
+						    LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = dp.user_id
+						    LEFT JOIN imi_conf_restore2_db.tb_countries cn ON cn.id = df.home_country
+						    LEFT JOIN tb_all_payments_compiled apc ON apc.df_id = df.id
+						    LEFT JOIN tb_external_payments ep ON ep.id = apc.external_payment_id
+						    LEFT JOIN tb_paypal_transaction_data ptd ON ptd.id = ep.transaction_paypal_id
+						    LEFT JOIN tb_payeezy_transaction_data petd ON petd.id = ep.transaction_payeezy_id
+						    INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value AND dr.table_name = 'tb_donation_form' AND (petd.id IS NULL OR CAST(dr.created_at AS DATE) = CAST(petd.time AS DATE) OR df.donation_mode != 'recurring')
+						    WHERE df.is_paid = 1 AND df.is_active = 1 AND df.belongs_country IN ('4') AND DATE(COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME))) >= SUBDATE(CURRENT_DATE, 180)";
+										$filterSubqueries[] = $catequery;
+					        }
+					        // For 'events'
+					        elseif ($value === 'events') {
+					           	$catequery  = "SELECT 
+							        er.id, 
+							        df.first_name AS name,
+							        COALESCE(ptd.card_holder_name, petd.cardholder_name) AS card_holder_name,
+							        COALESCE(ptd.transaction_amount, df.donate_amount, petd.amount) AS amount,
+							        COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME)) AS Date,
+							        dpp.name AS dpdesc,
+							        dp.payment_mode AS payment_method,
+							        df.donation_mode AS payment_mode,
+							        (CASE
+							            WHEN (df.donation_freq = 'M-1') THEN 'Monthly'
+							            WHEN (df.donation_freq = 'M-3') THEN 'Quarterly'
+							            WHEN (df.donation_freq = 'M-6') THEN 'Half Yearly'
+							            ELSE 'Yearly'
+							        END) AS donation_frequency,
+							        df.donate_honoree AS honoree_name,
+							        (CASE WHEN (up.home_full_address IS NULL) THEN df.home_address ELSE up.home_full_address END) AS home_full_address,
+							        up.home_city,
+							        up.home_state_province,
+							        up.cellphone_number,
+							        IFNULL(df.home_zipcode, up.home_zipcode) AS zip,
+							        COALESCE(ptd.email_address, df.email) AS email_address,
+							        (CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END) AS status,
+							        COALESCE(df.tax_receipt_num, dr.receipt_number) AS tax_receipt_num,
+							        dr.receipt_prefix,
+							        (CASE WHEN (dp.payment_mode = 'payeezy') THEN cp.transaction_id ELSE dp.reference_number END) AS ref_id,
+							        'events' AS receipt_purpose,
+							        (CASE WHEN apc.id IS NOT NULL THEN 'Yes' ELSE 'No' END) AS process_status,
+							        cn.countries_name AS country_name
+							    FROM 
+							        tb_event_registrations er 
+							        LEFT JOIN tb_donation_form df ON df.id = er.donation_form_id
+							        LEFT JOIN tb_donation_payments dp ON df.id = dp.table_id_value AND dp.table_name = 'tb_donation_form'
+							        LEFT JOIN tb_donation_projects dpp ON dpp.id = df.donation_projects_id
+							        LEFT JOIN tb_event_packages ep ON ep.id = er.package_id 
+							        LEFT JOIN tb_sitesectionswidgets ssw ON ssw.id = er.event_id
+							        LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = dp.user_id
+							        LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id AND cp.is_cron = 0
+							        LEFT JOIN imi_conf_restore2_db.tb_countries cn ON cn.id = df.home_country
+							        LEFT JOIN tb_all_payments_compiled apc ON apc.df_id = df.id
+							        LEFT JOIN tb_external_payments ep2 ON ep2.id = apc.external_payment_id
+							        LEFT JOIN tb_paypal_transaction_data ptd ON ptd.id = ep2.transaction_paypal_id
+							        LEFT JOIN tb_payeezy_transaction_data petd ON petd.id = ep2.transaction_payeezy_id
+							        INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value AND dr.table_name = 'tb_donation_form' AND (petd.id IS NULL OR CAST(dr.created_at AS DATE) = CAST(petd.time AS DATE) OR df.donation_mode != 'recurring')
+							    WHERE 
+							        df.is_paid = 1 AND 
+							        df.is_active = 1 AND 
+							        df.belongs_country IN ('4') AND 
+							        DATE(COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME))) >= SUBDATE(CURRENT_DATE, 180)";
+							$filterSubqueries[] = $catequery;
+				        }
+				        // For 'conferences'
+				        elseif ($value === 'conferences') {
+				           $catequery = "					SELECT
+									crm.userid as id,
+
+									COALESCE(
+										ud.name, ptd.card_holder_name, petd.cardholder_name
+									) as card_holder_name,
+								
+									cp.payment_gross as amount,
+									cp.date_added as Date,
+									tc.name as conference_name,
+									cp.payment_mode as payment_method,
+									'onetime' as payment_mode,
+									'' as donation_frequency, 
+									'' as honoree_name, 
+									'' as home_full_address, 
+									'' as home_city, 
+									'' as home_state_province,
+									crso.phone as cellphone_number,
+									'' as zip, 
+									crso.email as email_address,
+									( CASE WHEN (cp.payment_status = 'Completed') THEN 'Paid' ELSE 'Unpaid' END ) as status,
+									crm.tax_receipt_num as tax_receipt_num, 
+									'A' as receipt_prefix, 
+									cp.ipn_track_id as ref_id,
+									'conferencceregistration' as receipt_purpose,
+									(CASE WHEN apc.id is not null then 'Yes' else 'No' end) as process_status,
+									cn.countries_name as country_name,
+									'' as pkg_title
+									FROM imi_conf_restore2_db.tb_conference_payments cp 
+									INNER JOIN imi_conf_restore2_db.tb_conference_registration_master crm ON cp.conference_registration_id = crm.id
+									LEFT JOIN imi_conf_restore2_db.tb_users ud ON crm.userid = ud.id
+									LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = ud.id
+									LEFT JOIN imi_conf_restore2_db.tb_conference_registration_screen_one crso ON ( CASE WHEN crm.parentid IS NOT NULL THEN crm.parentid ELSE crm.id END )  = crso.conferenceregistrationid
+									LEFT JOIN imi_conf_restore2_db.tb_countries cn on cn.id = crso.country_of_residence
+									LEFT JOIN imiportal_new_db.tb_all_payments_compiled apc on apc.df_id = crm.id
+									LEFT JOIN imiportal_new_db.tb_external_payments ep on ep.id = apc.external_payment_id
+									LEFT JOIN imiportal_new_db.tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
+									LEFT JOIN imiportal_new_db.tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
+									INNER JOIN imi_conf_restore2_db.tb_conference tc ON crm.conferenceid = tc.id
+									WHERE cp.conferenceid = 58 AND payment_status = 'Completed' AND
+									DATE( COALESCE(ptd.transaction_initiation_date, petd.time, (
+										SELECT 
+										date_added 
+										FROM 
+										imi_conf_restore2_db.tb_conference_registration_screen_two 
+										WHERE 
+										conferenceregistrationid = crm.id
+										)
+									)) >= SUBDATE(CURRENT_DATE, 180)";
+						$filterSubqueries[] = $catequery;
+				            
+				        }
+		        // For 'short_conference'
+		        elseif ($value === 'short_conferences') {
+		            	
+		           	$catequery = "SELECT 
+							(SELECT 
+							userid 
+							FROM 
+								tb_short_conference_registration_master 
+							WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid) as id,
+							full_name,
+							COALESCE(full_name , ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
+							COALESCE(ptd.transaction_amount, (
+							  SELECT 
+								price_total_payable 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							), petd.amount) as amount,
+							COALESCE(ptd.transaction_initiation_date, petd.time, (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							), (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_payments 
+							  WHERE 
+								conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid 
+								AND payment_status = 'Completed' 
+							  LIMIT 
+								1
+							)) as Date,
+							(
+							  SELECT 
+								name 
+							  FROM 
+								tb_short_conference 
+							  WHERE 
+								id IN (
+								  (
+									SELECT 
+									  conferenceid 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  )
+								)
+							) as conference_name, 
+							(
+							  SELECT 
+								payment_type 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) as payment_type,
+							'onetime' as payment_mode,
+							'' as donation_frequency, 
+							'' as honoree_name, 
+							'' as home_full_address, 
+							'' as home_city, 
+							'' as home_state_province, 
+							(
+								SELECT 
+								  phone 
+								FROM 
+								  tb_short_conference_registration_screen_one 
+								WHERE 
+								  conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							  ) as cellphone_number,
+                              
+							'' as zip, 
+							COALESCE(
+								ptd.email_address, 
+								(
+							  SELECT 
+								email 
+							  FROM 
+								tb_short_conference_registration_screen_one 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+								)
+							) as email_address,
+                            (
+                                SELECT payment_mode 
+                                FROM tb_short_conference_payments
+                                WHERE id = tb_short_conference_registration_screen_three.conferenceregistrationid
+                            ) as payment_method,
+							NULL as status,
+							(
+							  SELECT 
+								tax_receipt_num 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) as tax_receipt, 
+							'SC' as receipt_prefix, 
+							(
+								SELECT 
+								ipn_track_id 
+								FROM 
+								tb_short_conference_payments 
+								WHERE 
+								conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								AND payment_status = 'Completed' 
+								LIMIT 
+							  	1
+							) as ref_id, 
+							'shortconferencceregistration' as receipt_purpose,
+							CASE WHEN apc.id is not null then 'Yes' else 'No' end
+							
+						  FROM 
+							tb_short_conference_registration_screen_three 
+						  left join tb_all_payments_compiled apc on apc.sc_id = tb_short_conference_registration_screen_three.conferenceregistrationid
+						  left join tb_external_payments ep on ep.id = apc.external_payment_id
+						  left join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
+						  left join tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
+						  WHERE 
+							parentid = '0' 
+							AND (
+							  (
+								SELECT 
+								  is_paid 
+								FROM 
+								  tb_short_conference_registration_master 
+								WHERE 
+								  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							  ) = 1 || (
+								(
+								  SELECT 
+									is_paid 
+								  FROM 
+									tb_short_conference_registration_master 
+								  WHERE 
+									id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								) = 0 
+								AND (
+								  (
+									SELECT 
+									  payment_allow 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 0 || (
+									SELECT 
+									  payment_allow 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 1
+								) 
+								AND (
+								  (
+									SELECT 
+									  payment_type 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 'cash'
+								)
+							  )
+							) 
+							AND (
+							  SELECT 
+								conferenceid 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) = 5
+						  AND DATE( COALESCE(ptd.transaction_initiation_date, petd.time, (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							))) >= SUBDATE(CURRENT_DATE, 180)";
+							$filterSubqueries[] = $catequery;		            
+		        }
+		     } 
+		}
+		$filterSubquery = implode(' OR ', $filterConditions);
+			$catequery = implode(' UNION ALL ', $filterSubqueries);
+			$sqlQuery = "SELECT * FROM ($catequery) AS subquery WHERE $filterSubquery";
+
+			// print_r($sqlQuery);
+			// // echo $sqlQuery;
+			// die;
+		    	$results = $this->db->query($sqlQuery)->result();
+				$final_data = [];
+		if($results>0){
+			foreach($results as $data_per_view_row){
+
+				// echo '<pre>';
+				// print_r($data_per_view_row);
+
+				// echo '</pre>'; 
+	
+				if($data_per_view_row->amount < 0){
+					continue;
+				}
+
+				$status   = $data_per_view_row->status == 'S' ? 'Paid' : $data_per_view_row->status;
+				$payment_mode = $data_per_view_row->payment_mode == 'T0007' ? 'onetime' : ($data_per_view_row->payment_mode == 'T0002' ? 'recurring' : $data_per_view_row->payment_mode);
+				$payment_method = $data_per_view_row->payment_method == 'card' ? 'payeezy' : $data_per_view_row->payment_method;
+
+				// var_dump($name);
+				$date_tempp = $data_per_view_row->Date;  
+				$date_temp  = new DateTime($date_tempp);
+				/* echo '<pre>';
+				// // var_dump($data_per_view_row['first_name'] . ' ' . $data_per_view_row['last_name']);
+				print_r($data_per_view_row);
+				// print_r($date_temp);
+				// var_dump($date_temp->format('Y-m-d'));
+				echo '</pre>';  */
+				// var_dump($date_temp->format('Y-m-d'));
+				// $final_data[] = [
+				// 	"card_holder_name"   	=> $data_per_view_row['card_holder_name'],
+				// 	"full_name"          	=> $data_per_view_row['name'],
+				// 	"transaction_amount" 	=> round($data_per_view_row['amount'], 2),
+				// 	"date"               	=> $date_temp->format('Y-m-d'),
+				// 	"purpose" 			 	=> $data_per_view_row['dpdesc'],
+				// 	"payment_method"     	=> $payment_method,
+				// 	"donation_mode"      	=> $payment_mode,
+				// 	"country_name"       	=> $data_per_view_row['country_name'],
+				// 	"email_address"      	=> $data_per_view_row['email_address'],
+				// 	"transaction_status" 	=> $status,
+				// 	"tax_receipt"        	=> $data_per_view_row['tax_receipt_num'],
+				// 	"reconciliation_status" => $data_per_view_row['process_status'],
+				// 	"receipt_id"            => $data_per_view_row['id'],
+				// 	"receipt_prefix"        => $data_per_view_row['receipt_prefix'],
+				// 	"receipt_purpose"       => $data_per_view_row['receipt_purpose'],
+				// ];
+
+				$final_data[] = [
+						"card_holder_name"   	=> $data_per_view_row->card_holder_name,
+						"full_name"          	=> $data_per_view_row->name,
+						"transaction_amount" 	=> round($data_per_view_row->amount, 2),
+						"date"               	=> $date_temp->format('Y-m-d'),
+						"purpose" 			 	=> !empty($data_per_view_row->pkg_title) ? $data_per_view_row->pkg_title : $data_per_view_row->dpdesc,
+						"payment_method"     	=> $data_per_view_row->payment_method,
+						"donation_mode"      	=> $payment_mode,
+						"country_name"       	=> $data_per_view_row->country_name,
+						"email_address"      	=> $data_per_view_row->email_address,
+						"transaction_status" 	=> $status,
+						"tax_receipt"        	=> $data_per_view_row->tax_receipt_num,
+						"reconciliation_status" => $data_per_view_row->process_status,
+						"receipt_id"            => $data_per_view_row->id,
+						"receipt_prefix"        => $data_per_view_row->receipt_prefix,
+						"receipt_purpose"       => !empty($data_per_view_row->pkg_title) ? 'eventregistration' : $data_per_view_row->receipt_purpose,
+						"sehm"      			=> $data_per_view_row->sehm,
+						"syed"      			=> $data_per_view_row->syed,
+						"marjaa"       			=> $data_per_view_row->marjaa,
+						"ref_id"       			=> $data_per_view_row->ref_id,
+						"home_full_address"     => $data_per_view_row->home_full_address,
+						"home_city"       		=> $data_per_view_row->home_city,
+						"home_state_province"   => $data_per_view_row->home_state_province,
+						"cellphone_number"      => $data_per_view_row->cellphone_number,
+						"honoree_name"      	=> $data_per_view_row->honoree_name,
+						"payment_frequency"     => $data_per_view_row->donation_frequency,
+				];
+				
+			}
+				// die;
+
+
+			// echo "<pre>";
+			// print_r($final_data);
+
+			// die;
+			// $this->load->library("Encrption");
+			// $data["table_properties"]	= $this -> view_table_properties(  SessionHelper::_get_session("slug", "conference") );
+			//  $response_json = json_encode($response_data);
+			//  $data['response_json'] = $response_json;
+		 //    $data['table_record'] = $final_data;
+		 //    $this->session->set_flashdata('data', $data);
+		 //      redirect($this->search_page_data["_pagepath"].'/advancesearchallreports', 'refresh');
+
+			$this->load->library("Encrption");
+			// $data["table_properties"] = $this->view_table_properties(SessionHelper::_get_session("slug", "conference"));
+			$data["table_properties"] = $this->view_table_properties(SessionHelper::_get_session("slug", "conference"));
+
+			// $response_json = json_encode($response_data);
+			// $data['response_json'] = $response_json;
+			$data['table_record'] = $final_data;
+
+			// Return JSON response instead of redirecting
+			header('Content-Type: application/json');
+			echo json_encode($data);
+			exit(); // Important: stop execution after echoing JSON
+		}else{
+			echo json_encode('No Data Found');
 		}
 
-		$filterQuery = implode(' OR ', $filterConditions);
+		  
 
-		    $sqlQuery = "SELECT * from (
-    	select 
-		DISTINCT df.id, 
-		df.first_name as name, 
-		COALESCE(
-		  ptd.card_holder_name, petd.cardholder_name
-		) as card_holder_name, 
-		COALESCE(
-		  ptd.transaction_amount, df.donate_amount, 
-		  petd.amount
-		) as amount, 
-		COALESCE(
-		  ptd.transaction_initiation_date, 
-		  petd.time, 
-		  CAST(df.date_added AS DATETIME)
-		) as Date, 
-		dpp.name as dpdesc, 
-		dp.payment_mode as payment_method, 
-		df.donation_mode as payment_mode, 
-		(
-			CASE WHEN (df.donation_freq = 'M-1') THEN 'Monthly' WHEN (df.donation_freq = 'M-3') THEN 'Quarterly' WHEN (df.donation_freq = 'M-6') THEN 'Half Yearly' ELSE 'Yearly' END
-		) as donation_frequency, 
-		df.donate_honoree as honoree_name, 
-		(
-			CASE WHEN (up.home_full_address IS NULL) THEN df.home_address ELSE up.home_full_address END
-		) as home_full_address, 
-		up.home_city, 
-		up.home_state_province, 
-		up.cellphone_number, 
-		IFNULL(
-			df.home_zipcode, up.home_zipcode
-		) as zip,
-		COALESCE(ptd.email_address, df.email) as email_address, 
-		(
-		  CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END
-		) as status, 
-		COALESCE(
-			df.tax_receipt_num, dr.receipt_number
-		) as tax_receipt_num, 
-		dr.receipt_prefix, 
-		(
-			CASE WHEN (dp.payment_mode = 'payeezy') THEN cp.transaction_id ELSE dp.reference_number END
-		) as ref_id, 
-		'donation' as receipt_purpose, 
-		(
-		  CASE WHEN apc.id is not null then 'Yes' else 'No' end
-		) as process_status, 
-		cn.countries_name as country_name, 
-		df.sehm, 
-		df.marjaa, 
-		df.is_syed,
-		ssw.title as pkg_title
-	  FROM 
-		tb_donation_form df 
-		INNER JOIN tb_donation_payments dp ON df.id = dp.table_id_value 
-		AND dp.table_name = 'tb_donation_form' 
-		LEFT JOIN tb_donation_projects dpp ON dpp.id = df.donation_projects_id 
-		LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id 
-		AND cp.is_cron = 0 
-		LEFT JOIN tb_event_registrations er ON er.donation_form_id = df.id
-		LEFT JOIN tb_sitesectionswidgets ssw ON ssw.id = er.event_id
-		LEFT JOIN imi_conf_restore2.tb_users_profile up ON up.userid = dp.user_id 
-		LEFT JOIN imi_conf_restore2.tb_countries cn ON cn.id = df.home_country 
-		LEFT join tb_all_payments_compiled apc on apc.df_id = df.id 
-		LEFT join tb_external_payments ep on ep.id = apc.external_payment_id 
-		LEFT join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id 
-		LEFT join tb_payeezy_transaction_data petd on petd.id = ep.transaction_payeezy_id 
-        INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value 
-		AND dr.table_name = 'tb_donation_form' 
-		AND (
-			petd.id is null 
-			OR CAST(dr.created_at AS DATE) = CAST(petd.time AS DATE) 
-			OR df.donation_mode != 'recurring'
-		) 
-	  WHERE 
-		df.is_paid = 1 
-		AND df.is_active = 1 
-		AND df.belongs_country IN(4)
-		AND DATE(
-		  COALESCE(
-			ptd.transaction_initiation_date, 
-			petd.time, 
-			CAST(df.date_added AS DATETIME)
-		  )
-		) >= SUBDATE(CURRENT_DATE, 180) 
-		UNION ALL 
-		select 
-		DISTINCT 
-		df.id,
-		df.card_name as name,
-		COALESCE(ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
-		COALESCE(ptd.transaction_amount, df.donate_amount, petd.amount) as amount,
-		CAST(df.date_added AS DATETIME) as Date, 
-		'IMI Donation In Honor Of Someone' as dpdesc, 
-		dp.payment_mode as payment_method, 
-		'onetime' as payment_mode, 
-		'' as donation_frequency, 
-		'' as honoree_name, 
-		up.home_full_address, 
-		up.home_city, 
-		up.home_state_province, 
-		up.cellphone_number, 
-		up.home_zipcode as zip, 
-		COALESCE(
-			ptd.email_address, df.card_email
-		) as email_address, 
-		(
-		CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END
-		) as status, 
-		dr.receipt_number as tax_receipt_num, 
-		dr.receipt_prefix, 
-		cp.transaction_id as ref_id, 
-		'honor_donation' as receipt_purpose, 
-		CASE WHEN apc.id is not null then 'Yes' else 'No' end, 
-		cn.countries_name as country_name, 
-		'' as sehm, 
-		'' as marjaa, 
-		'' as is_syed,
-		'' as pkg_title
-		FROM 
-		tb_give_honor_someone df 
-		INNER JOIN tb_donation_payments dp ON df.id = dp.table_id_value 
-		AND dp.table_name = 'tb_give_honor_someone' 
-		INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value 
-		AND dr.table_name = 'tb_give_honor_someone' 
-		LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id 
-		AND cp.is_cron = 0 
-		LEFT JOIN imi_conf_restore2.tb_users_profile up ON up.userid = dp.user_id 
-		LEFT JOIN imi_conf_restore2.tb_countries cn ON cn.id = df.home_country 
-		left join tb_all_payments_compiled apc on apc.df_id = df.id
-		left join tb_external_payments ep on ep.id = apc.external_payment_id
-		left join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
-		left join tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
-		WHERE 
-			df.is_paid = 1 
-			AND df.is_active = 1 
-			AND df.belongs_country IN(1,2,3,4)
-			AND DATE( CAST(df.date_added AS DATETIME) ) >= SUBDATE(CURRENT_DATE, 180)
-		UNION ALL 
-	  	select 
-		DISTINCT 
-		um.id,
-		u.name, 
-		COALESCE(ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
-		COALESCE(ptd.transaction_amount, IF(
-		  membership_package_price IS NULL 
-		  or membership_package_price = ' ', 
-		  um_p.price, 
-		  membership_package_price
-		), petd.amount) as amount,
-		COALESCE(ptd.transaction_initiation_date, petd.time, um.date_purchased) as Date,
-		IF(
-		  membership_package_name IS NULL 
-		  or membership_package_name = ' ', 
-		  um_p.name, 
-		  membership_package_name
-		) as dpdesc, 
-		'paypal' as payment_method,
-		ptd.transaction_event_code as payment_mode,
-		(
-			CASE WHEN (
-			um.membership_package_per = 'Year'
-			) THEN 'Yearly' WHEN (
-			um.membership_package_per = 'Life'
-			) THEN 'Lifetime' ELSE '' END
-		) as donation_frequency, 
-		'' as honoree_name, 
-		up.home_full_address as home_full_address, 
-		up.home_city, 
-		up.home_state_province, 
-		up.cellphone_number, 
-		up.home_zipcode as zip, 
-		COALESCE(
-			ptd.email_address, 
-			LOWER(u.email)
-		) as email_address, 
-		(
-		  CASE WHEN (u.ispaid = '1') THEN 'Paid' ELSE 'Unpaid' END
-		) as status, 
-		dr.receipt_number as tax_receipt,
-		dr.receipt_prefix,
-		um.paypal_payer_id as ref_id, 
-		'membershipregistration' as receipt_purpose,
-		CASE WHEN apc.id is not null then 'Yes' else 'No' end,
-		hc.countries_name as belongstoz, 
-		'' as sehm, 
-		'' as marjaa, 
-		'' as is_syed,
-		'' as pkg_title
-	  FROM 
-		imi_conf_restore2.tb_users u 
-		INNER JOIN imi_conf_restore2.tb_user_memberships um ON um.id = (
-		  SELECT 
-			t1.id 
-		  FROM 
-			imi_conf_restore2.tb_user_memberships t1 
-		  WHERE 
-			t1.user_id = u.id 
-		  ORDER BY 
-			IFNULL(member_expiry, date_purchased) DESC 
-		  LIMIT 
-			1
-		) INNER JOIN tb_payment_receipts dr ON um.id = dr.table_id_value 
-		AND dr.table_name = 'tb_user_memberships' 
-		LEFT JOIN tb_short_conference_prices_not_a_member um_p ON um.membership_package_id = um_p.id 
-		LEFT JOIN imi_conf_restore2.tb_users_profile up ON up.userid = u.id 
-		LEFT JOIN imi_conf_restore2.tb_countries hc ON hc.id = up.home_country 
-		left join tb_all_payments_compiled apc on apc.um_id in (
-		  SELECT 
-			t1.id 
-		  FROM 
-			imi_conf_restore2.tb_user_memberships t1 
-		  WHERE 
-			t1.user_id = u.id 
-		)
-		left join tb_external_payments ep on ep.id = apc.external_payment_id
-		left join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
-		left join tb_payeezy_transaction_data petd on petd.id = ep.transaction_payeezy_id
-		WHERE DATE( COALESCE(ptd.transaction_initiation_date, petd.time, um.date_purchased) ) >= SUBDATE(CURRENT_DATE, 180)
-	  
-	  UNION ALL 
-	  SELECT 
-		(SELECT 
-		userid 
-		FROM 
-			tb_short_conference_registration_master 
-		WHERE 
-			id = tb_short_conference_registration_screen_three.conferenceregistrationid) as id,
-		full_name,
-		COALESCE(ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
-		COALESCE(ptd.transaction_amount, (
-		  SELECT 
-			price_total_payable 
-		  FROM 
-			tb_short_conference_registration_screen_two 
-		  WHERE 
-			conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
-		), petd.amount) as amount,
-		COALESCE(ptd.transaction_initiation_date, petd.time, (
-		  SELECT 
-			date_added 
-		  FROM 
-			tb_short_conference_registration_screen_two 
-		  WHERE 
-			conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
-		), (
-		  SELECT 
-			date_added 
-		  FROM 
-			tb_short_conference_payments 
-		  WHERE 
-			conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid 
-			AND payment_status = 'Completed' 
-		  LIMIT 
-			1
-		)) as Date,
-		(
-		  SELECT 
-			name 
-		  FROM 
-			tb_short_conference 
-		  WHERE 
-			id IN (
-			  (
-				SELECT 
-				  conferenceid 
-				FROM 
-				  tb_short_conference_registration_master 
-				WHERE 
-				  id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			  )
-			)
-		) as conference_name, 
-		(
-		  SELECT 
-			payment_type 
-		  FROM 
-			tb_short_conference_registration_master 
-		  WHERE 
-			id = tb_short_conference_registration_screen_three.conferenceregistrationid
-		) as payment_type,
-		'onetime' as payment_mode,
-		'' as donation_frequency, 
-		'' as honoree_name, 
-		'' as home_full_address, 
-		'' as home_city, 
-		'' as home_state_province, 
-		(
-			SELECT 
-			  phone 
-			FROM 
-			  tb_short_conference_registration_screen_one 
-			WHERE 
-			  conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
-		  ) as cellphone_number,
-		'' as zip, 
-		COALESCE(
-			ptd.email_address, 
-			(
-		  SELECT 
-			email 
-		  FROM 
-			tb_short_conference_registration_screen_one 
-		  WHERE 
-			conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
-			)
-		) as email_address, 
-		NULL as status,
-		(
-		  SELECT 
-			tax_receipt_num 
-		  FROM 
-			tb_short_conference_registration_master 
-		  WHERE 
-			id = tb_short_conference_registration_screen_three.conferenceregistrationid
-		) as tax_receipt, 
-		'SC' as receipt_prefix, 
-		(
-			SELECT 
-			ipn_track_id 
-			FROM 
-			tb_short_conference_payments 
-			WHERE 
-			conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			AND payment_status = 'Completed' 
-			LIMIT 
-		  	1
-		) as ref_id, 
-		'shortconferencceregistration' as receipt_purpose,
-		CASE WHEN apc.id is not null then 'Yes' else 'No' end,
-		'', 
-		'' as sehm, 
-		'' as marjaa, 
-		'' as is_syed,
-		'' as pkg_title
-	  FROM 
-		tb_short_conference_registration_screen_three 
-	  left join tb_all_payments_compiled apc on apc.sc_id = tb_short_conference_registration_screen_three.conferenceregistrationid
-	  left join tb_external_payments ep on ep.id = apc.external_payment_id
-	  left join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
-	  left join tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
-	  WHERE 
-		parentid = '0' 
-		AND (
-		  (
-			SELECT 
-			  is_paid 
-			FROM 
-			  tb_short_conference_registration_master 
-			WHERE 
-			  id = tb_short_conference_registration_screen_three.conferenceregistrationid
-		  ) = 1 || (
-			(
-			  SELECT 
-				is_paid 
-			  FROM 
-				tb_short_conference_registration_master 
-			  WHERE 
-				id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			) = 0 
-			AND (
-			  (
-				SELECT 
-				  payment_allow 
-				FROM 
-				  tb_short_conference_registration_master 
-				WHERE 
-				  id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			  ) = 0 || (
-				SELECT 
-				  payment_allow 
-				FROM 
-				  tb_short_conference_registration_master 
-				WHERE 
-				  id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			  ) = 1
-			) 
-			AND (
-			  (
-				SELECT 
-				  payment_type 
-				FROM 
-				  tb_short_conference_registration_master 
-				WHERE 
-				  id = tb_short_conference_registration_screen_three.conferenceregistrationid
-			  ) = 'cash'
-			)
-		  )
-		) 
-		AND (
-		  SELECT 
-			conferenceid 
-		  FROM 
-			tb_short_conference_registration_master 
-		  WHERE 
-			id = tb_short_conference_registration_screen_three.conferenceregistrationid
-		) = 5
-	  AND DATE( COALESCE(ptd.transaction_initiation_date, petd.time, (
-		  SELECT 
-			date_added 
-		  FROM 
-			tb_short_conference_registration_screen_two 
-		  WHERE 
-			conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
-		))) >= SUBDATE(CURRENT_DATE, 180)
-	  union
-	  select
-	  apc.id,
-	  '' as name,
-		COALESCE(ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
-		COALESCE(ptd.transaction_amount, petd.amount) as amount,
-		COALESCE(ptd.transaction_initiation_date, petd.time) as Date,
-		ptd.item_name,
-		(
-			CASE WHEN ptd.id IS NOT NULL THEN 'paypal' ELSE 'payeezy' END
-		), 
-		ptd.transaction_event_code,
-		'' as donation_frequency, 
-		'' as honoree_name, 
-		'' as home_full_address, 
-		'' as home_city, 
-		'' as home_state_province, 
-		'' as cellphone_number, 
-		'' as zip, 
-		ptd.email_address as email_address,
-		COALESCE(
-			ptd.transaction_status, petd.status
-		) as status, 
-		'' as tax_receipt,
-		'' as receipt_prefix, 
-		'' as receipt_purpose, 
-		COALESCE(ptd.transaction_id, petd.auth_no) as ref_id, 
-		'No' as process_status,
-		'', 
-		'' as sehm, 
-		'' as marjaa, 
-		'' as is_syed,
-		'' as pkg_title
-		from 
-		tb_all_payments_compiled apc 
-		INNER JOIN tb_external_payments ep ON apc.external_payment_id = ep.id 
-		LEFT JOIN tb_paypal_transaction_data ptd ON ep.transaction_paypal_id = ptd.id
-		LEFT JOIN tb_payeezy_transaction_data petd ON ep.transaction_payeezy_id = petd.id
-		where 
-		apc.df_id is null 
-		and apc.um_id is null 
-		and apc.sc_id is null 
-		and DATE(
-			COALESCE(
-			ptd.transaction_initiation_date, 
-			petd.time
-			)
-		) >= SUBDATE(CURRENT_DATE, 30) 
-	  ORDER BY 
-		Date desc
-			) AS subquery
-		      WHERE $filterQuery";
-
-		    // Execute the SQL query and retrieve the results
-
-
-		      // echo "<pre>";
-		      // echo $sqlQuery;
-
-		      // die;
-		    $results = $this->db->query($sqlQuery)->result();
-
-		    // Do whatever you want with the results
-		    // ...	
-		    // echo "<pre>";
-		    // print_r($results);
-		    // die;
-		    	$this->load->library("Encrption");
-		
-			$data["table_properties"]									= $this -> view_table_properties(  SessionHelper::_get_session("slug", "conference") );
-		
-		    $data['table_record'] = $results;
-			$this->load->view( ADMINCMS_TEMPLATE_VIEW, $data);
+			// $this->load->view( ADMINCMS_TEMPLATE_VIEW, $data);
 		}
+
+
+		public function downloadfiltercsv()
+		{
+
+			 $data	= $this->data;
+			 $searchCategory = $this->input->post('search_category');
+			 $searchValue = $this->input->post('search_value');
+			 $from_date =  $_POST['from_date'];
+			 $to_date = $_POST['to_date'];
+			 $csv_type = $_POST['csv_type'];
+			if ($csv_type == "csvdownload") {
+				$finalarray = array();
+				$finalarray['search_category'] = $searchCategory;
+
+				$searchValues = array();
+				foreach ($_POST as $key => $value) {
+				    if (strpos($key, 'search_value') === 0) {
+				        $searchValues = array_merge($searchValues, array_filter($value));
+				    }
+				}
+				$searchValueArray['search_value'] = $searchValues;
+				$catequery = "";
+				$filterConditions = array();
+				foreach ($finalarray['search_category'] as $index => $category) {
+				    // Retrieve the corresponding search value for the current category
+				    $value = isset($searchValues[$index]) ? $searchValues[$index] : '';
+
+				    // Use LIKE if the value is not empty, otherwise use '='
+				    $operator = !empty($value) ? 'LIKE' : '=';
+
+				    // Handle the case where the value is empty for LIKE comparison
+				    if ($operator === 'LIKE') {
+				        $value = "%$value%";
+				    }
+				       if ($category === 'category') {
+				        continue; // Skip the 'category' condition
+				    }
+
+
+				      $filterConditions[] = "(subquery.$category $operator '$value')";
+				}
+					    if (!empty($from_date) && !empty($to_date)) {
+				    $from_date = date('Y-m-d', strtotime($from_date));
+				    $to_date = date('Y-m-d', strtotime($to_date));
+				    $date_condition = "subquery.Date BETWEEN '$from_date' AND '$to_date'";
+				    $filterConditions[] = $date_condition;
+				}
+					$filterSubquery = implode(' OR ', $filterConditions);
+					$searchValue = $searchValues;
+					
+					foreach ($searchCategory as $index => $category) {
+				    $value = $searchValue[$index];
+
+				    if ($category === 'category') {
+				        // For 'donate'
+				        if ($value === 'donate') {
+					           	$catequery = "SELECT DISTINCT
+						        df.id,
+						        df.first_name AS name,
+						        COALESCE(ptd.card_holder_name, petd.cardholder_name) AS card_holder_name,
+						        COALESCE(ptd.transaction_amount, df.donate_amount, petd.amount) AS amount,
+						        COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME)) AS Date,
+						        dpp.name AS dpdesc,
+						        dp.payment_mode AS payment_method,
+						        df.donation_mode AS payment_mode,
+						        (CASE
+						            WHEN (df.donation_freq = 'M-1') THEN 'Monthly'
+						            WHEN (df.donation_freq = 'M-3') THEN 'Quarterly'
+						            WHEN (df.donation_freq = 'M-6') THEN 'Half Yearly'
+						            ELSE 'Yearly'
+						        END) AS donation_frequency,
+						        df.donate_honoree AS honoree_name,
+						        (CASE WHEN (up.home_full_address IS NULL) THEN df.home_address ELSE up.home_full_address END) AS home_full_address,
+						        up.home_city,
+						        up.home_state_province,
+						        up.cellphone_number,
+						        IFNULL(df.home_zipcode, up.home_zipcode) AS zip,
+						        COALESCE(ptd.email_address, df.email) AS email_address,
+						        (CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END) AS status,
+						        COALESCE(df.tax_receipt_num, dr.receipt_number) AS tax_receipt_num,
+						        dr.receipt_prefix,
+						        (CASE WHEN (dp.payment_mode = 'payeezy') THEN cp.transaction_id ELSE dp.reference_number END) AS ref_id,
+						        'donation' AS receipt_purpose,
+						        (CASE WHEN apc.id IS NOT NULL THEN 'Yes' ELSE 'No' END) AS process_status,
+						        cn.countries_name AS country_name
+						    FROM tb_donation_form df
+						    INNER JOIN tb_donation_payments dp ON df.id = dp.table_id_value AND dp.table_name = 'tb_donation_form'
+						    LEFT JOIN tb_donation_projects dpp ON dpp.id = df.donation_projects_id
+						    LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id AND cp.is_cron = 0
+						    LEFT JOIN tb_event_registrations er ON er.donation_form_id = df.id
+						    LEFT JOIN tb_sitesectionswidgets ssw ON ssw.id = er.event_id
+						    LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = dp.user_id
+						    LEFT JOIN imi_conf_restore2_db.tb_countries cn ON cn.id = df.home_country
+						    LEFT JOIN tb_all_payments_compiled apc ON apc.df_id = df.id
+						    LEFT JOIN tb_external_payments ep ON ep.id = apc.external_payment_id
+						    LEFT JOIN tb_paypal_transaction_data ptd ON ptd.id = ep.transaction_paypal_id
+						    LEFT JOIN tb_payeezy_transaction_data petd ON petd.id = ep.transaction_payeezy_id
+						    INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value AND dr.table_name = 'tb_donation_form' AND (petd.id IS NULL OR CAST(dr.created_at AS DATE) = CAST(petd.time AS DATE) OR df.donation_mode != 'recurring')
+						    WHERE df.is_paid = 1 AND df.is_active = 1 AND df.belongs_country IN ('4') AND DATE(COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME))) >= SUBDATE(CURRENT_DATE, 180)";
+										$filterSubqueries[] = $catequery;
+					        }
+					        // For 'events'
+					        elseif ($value === 'events') {
+					           	$catequery  = "SELECT 
+							        er.id, 
+							        df.first_name AS name,
+							        COALESCE(ptd.card_holder_name, petd.cardholder_name) AS card_holder_name,
+							        COALESCE(ptd.transaction_amount, df.donate_amount, petd.amount) AS amount,
+							        COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME)) AS Date,
+							        dpp.name AS dpdesc,
+							        dp.payment_mode AS payment_method,
+							        df.donation_mode AS payment_mode,
+							        (CASE
+							            WHEN (df.donation_freq = 'M-1') THEN 'Monthly'
+							            WHEN (df.donation_freq = 'M-3') THEN 'Quarterly'
+							            WHEN (df.donation_freq = 'M-6') THEN 'Half Yearly'
+							            ELSE 'Yearly'
+							        END) AS donation_frequency,
+							        df.donate_honoree AS honoree_name,
+							        (CASE WHEN (up.home_full_address IS NULL) THEN df.home_address ELSE up.home_full_address END) AS home_full_address,
+							        up.home_city,
+							        up.home_state_province,
+							        up.cellphone_number,
+							        IFNULL(df.home_zipcode, up.home_zipcode) AS zip,
+							        COALESCE(ptd.email_address, df.email) AS email_address,
+							        (CASE WHEN (df.is_paid = '1') THEN 'Paid' ELSE 'Unpaid' END) AS status,
+							        COALESCE(df.tax_receipt_num, dr.receipt_number) AS tax_receipt_num,
+							        dr.receipt_prefix,
+							        (CASE WHEN (dp.payment_mode = 'payeezy') THEN cp.transaction_id ELSE dp.reference_number END) AS ref_id,
+							        'events' AS receipt_purpose,
+							        (CASE WHEN apc.id IS NOT NULL THEN 'Yes' ELSE 'No' END) AS process_status,
+							        cn.countries_name AS country_name
+							    FROM 
+							        tb_event_registrations er 
+							        LEFT JOIN tb_donation_form df ON df.id = er.donation_form_id
+							        LEFT JOIN tb_donation_payments dp ON df.id = dp.table_id_value AND dp.table_name = 'tb_donation_form'
+							        LEFT JOIN tb_donation_projects dpp ON dpp.id = df.donation_projects_id
+							        LEFT JOIN tb_event_packages ep ON ep.id = er.package_id 
+							        LEFT JOIN tb_sitesectionswidgets ssw ON ssw.id = er.event_id
+							        LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = dp.user_id
+							        LEFT JOIN tb_card_payments cp ON cp.payment_id = dp.id AND cp.is_cron = 0
+							        LEFT JOIN imi_conf_restore2_db.tb_countries cn ON cn.id = df.home_country
+							        LEFT JOIN tb_all_payments_compiled apc ON apc.df_id = df.id
+							        LEFT JOIN tb_external_payments ep2 ON ep2.id = apc.external_payment_id
+							        LEFT JOIN tb_paypal_transaction_data ptd ON ptd.id = ep2.transaction_paypal_id
+							        LEFT JOIN tb_payeezy_transaction_data petd ON petd.id = ep2.transaction_payeezy_id
+							        INNER JOIN tb_payment_receipts dr ON df.id = dr.table_id_value AND dr.table_name = 'tb_donation_form' AND (petd.id IS NULL OR CAST(dr.created_at AS DATE) = CAST(petd.time AS DATE) OR df.donation_mode != 'recurring')
+							    WHERE 
+							        df.is_paid = 1 AND 
+							        df.is_active = 1 AND 
+							        df.belongs_country IN ('4') AND 
+							        DATE(COALESCE(ptd.transaction_initiation_date, petd.time, CAST(df.date_added AS DATETIME))) >= SUBDATE(CURRENT_DATE, 180)";
+							$filterSubqueries[] = $catequery;
+				        }
+				        // For 'conferences'
+				        elseif ($value === 'conferences') {
+				           $catequery = "					SELECT
+									crm.userid as id,
+
+									COALESCE(
+										ud.name, ptd.card_holder_name, petd.cardholder_name
+									) as card_holder_name,
+								
+									cp.payment_gross as amount,
+									cp.date_added as Date,
+									tc.name as conference_name,
+									cp.payment_mode as payment_method,
+									'onetime' as payment_mode,
+									'' as donation_frequency, 
+									'' as honoree_name, 
+									'' as home_full_address, 
+									'' as home_city, 
+									'' as home_state_province,
+									crso.phone as cellphone_number,
+									'' as zip, 
+									crso.email as email_address,
+									( CASE WHEN (cp.payment_status = 'Completed') THEN 'Paid' ELSE 'Unpaid' END ) as status,
+									crm.tax_receipt_num as tax_receipt_num, 
+									'A' as receipt_prefix, 
+									cp.ipn_track_id as ref_id,
+									'conferencceregistration' as receipt_purpose,
+									(CASE WHEN apc.id is not null then 'Yes' else 'No' end) as process_status,
+									cn.countries_name as country_name,
+									'' as pkg_title
+									FROM imi_conf_restore2_db.tb_conference_payments cp 
+									INNER JOIN imi_conf_restore2_db.tb_conference_registration_master crm ON cp.conference_registration_id = crm.id
+									LEFT JOIN imi_conf_restore2_db.tb_users ud ON crm.userid = ud.id
+									LEFT JOIN imi_conf_restore2_db.tb_users_profile up ON up.userid = ud.id
+									LEFT JOIN imi_conf_restore2_db.tb_conference_registration_screen_one crso ON ( CASE WHEN crm.parentid IS NOT NULL THEN crm.parentid ELSE crm.id END )  = crso.conferenceregistrationid
+									LEFT JOIN imi_conf_restore2_db.tb_countries cn on cn.id = crso.country_of_residence
+									LEFT JOIN imiportal_new_db.tb_all_payments_compiled apc on apc.df_id = crm.id
+									LEFT JOIN imiportal_new_db.tb_external_payments ep on ep.id = apc.external_payment_id
+									LEFT JOIN imiportal_new_db.tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
+									LEFT JOIN imiportal_new_db.tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
+									INNER JOIN imi_conf_restore2_db.tb_conference tc ON crm.conferenceid = tc.id
+									WHERE cp.conferenceid = 58 AND payment_status = 'Completed' AND
+									DATE( COALESCE(ptd.transaction_initiation_date, petd.time, (
+										SELECT 
+										date_added 
+										FROM 
+										imi_conf_restore2_db.tb_conference_registration_screen_two 
+										WHERE 
+										conferenceregistrationid = crm.id
+										)
+									)) >= SUBDATE(CURRENT_DATE, 180)";
+						$filterSubqueries[] = $catequery;
+				            
+				        }
+		        // For 'short_conference'
+		        elseif ($value === 'short_conferences') {
+		            	
+		           	$catequery = "SELECT 
+							(SELECT 
+							userid 
+							FROM 
+								tb_short_conference_registration_master 
+							WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid) as id,
+							full_name,
+							COALESCE(full_name , ptd.card_holder_name, petd.cardholder_name) as card_holder_name, 
+							COALESCE(ptd.transaction_amount, (
+							  SELECT 
+								price_total_payable 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							), petd.amount) as amount,
+							COALESCE(ptd.transaction_initiation_date, petd.time, (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							), (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_payments 
+							  WHERE 
+								conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid 
+								AND payment_status = 'Completed' 
+							  LIMIT 
+								1
+							)) as Date,
+							(
+							  SELECT 
+								name 
+							  FROM 
+								tb_short_conference 
+							  WHERE 
+								id IN (
+								  (
+									SELECT 
+									  conferenceid 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  )
+								)
+							) as conference_name, 
+							(
+							  SELECT 
+								payment_type 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) as payment_type,
+							'onetime' as payment_mode,
+							'' as donation_frequency, 
+							'' as honoree_name, 
+							'' as home_full_address, 
+							'' as home_city, 
+							'' as home_state_province, 
+							(
+								SELECT 
+								  phone 
+								FROM 
+								  tb_short_conference_registration_screen_one 
+								WHERE 
+								  conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							  ) as cellphone_number,
+                              
+							'' as zip, 
+							COALESCE(
+								ptd.email_address, 
+								(
+							  SELECT 
+								email 
+							  FROM 
+								tb_short_conference_registration_screen_one 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+								)
+							) as email_address,
+                            (
+                                SELECT payment_mode 
+                                FROM tb_short_conference_payments
+                                WHERE id = tb_short_conference_registration_screen_three.conferenceregistrationid
+                            ) as payment_method,
+							NULL as status,
+							(
+							  SELECT 
+								tax_receipt_num 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) as tax_receipt, 
+							'SC' as receipt_prefix, 
+							(
+								SELECT 
+								ipn_track_id 
+								FROM 
+								tb_short_conference_payments 
+								WHERE 
+								conference_registration_id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								AND payment_status = 'Completed' 
+								LIMIT 
+							  	1
+							) as ref_id, 
+							'shortconferencceregistration' as receipt_purpose,
+							CASE WHEN apc.id is not null then 'Yes' else 'No' end,
+							'', 
+							'' as pkg_title
+						  FROM 
+							tb_short_conference_registration_screen_three 
+						  left join tb_all_payments_compiled apc on apc.sc_id = tb_short_conference_registration_screen_three.conferenceregistrationid
+						  left join tb_external_payments ep on ep.id = apc.external_payment_id
+						  left join tb_paypal_transaction_data ptd on ptd.id = ep.transaction_paypal_id
+						  left join tb_payeezy_transaction_data petd on petd.id = transaction_payeezy_id
+						  WHERE 
+							parentid = '0' 
+							AND (
+							  (
+								SELECT 
+								  is_paid 
+								FROM 
+								  tb_short_conference_registration_master 
+								WHERE 
+								  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							  ) = 1 || (
+								(
+								  SELECT 
+									is_paid 
+								  FROM 
+									tb_short_conference_registration_master 
+								  WHERE 
+									id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								) = 0 
+								AND (
+								  (
+									SELECT 
+									  payment_allow 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 0 || (
+									SELECT 
+									  payment_allow 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 1
+								) 
+								AND (
+								  (
+									SELECT 
+									  payment_type 
+									FROM 
+									  tb_short_conference_registration_master 
+									WHERE 
+									  id = tb_short_conference_registration_screen_three.conferenceregistrationid
+								  ) = 'cash'
+								)
+							  )
+							) 
+							AND (
+							  SELECT 
+								conferenceid 
+							  FROM 
+								tb_short_conference_registration_master 
+							  WHERE 
+								id = tb_short_conference_registration_screen_three.conferenceregistrationid
+							) = 5
+						  AND DATE( COALESCE(ptd.transaction_initiation_date, petd.time, (
+							  SELECT 
+								date_added 
+							  FROM 
+								tb_short_conference_registration_screen_two 
+							  WHERE 
+								conferenceregistrationid = tb_short_conference_registration_screen_three.conferenceregistrationid
+							))) >= SUBDATE(CURRENT_DATE, 180)";
+							$filterSubqueries[] = $catequery;		            
+		        }
+		     } 
+		}
+			$filterSubquery = implode(' OR ', $filterConditions);
+			$catequery = implode(' UNION ALL ', $filterSubqueries);
+			$sqlQuery = "SELECT * FROM ($catequery) AS subquery WHERE $filterSubquery";
+			header('Content-Type: text/csv; charset=utf-8');
+	        header('Content-Disposition: attachment; filename='. strtotime("now") . '-' . $csvtype . '.csv');
+			
+			// create a file pointer connected to the output stream
+			$output = fopen('php://output', 'w');
+			
+			// output the column headings
+			
+			$TMP_heading					= array( 
+												'Full Name',
+												'Card Holder\'s Name',
+												'Amount',
+												'Date',
+												'Purpose',
+												'Payment Method',
+												'Tax Receipt',
+												'Honoree\'s Name',
+												'Address',
+												'City',
+												'State/Province',
+												'Zip',
+												'Country Name',
+												'Contact #',
+												'Email',
+												'Status',
+												'Ref ID',
+												'Payment Mode',
+												'Payment Frequency',
+												'Automated Reconciliation Status'
+											);
+			
+			fputcsv($output, $TMP_heading);
+
+			$table_record  = $this->fetch_csv_download_filter($sqlQuery);
+			foreach ($table_record as $row) 
+		{
+			$receipt = !empty($row['tax_receipt']) ? $row['receipt_prefix'].$row['tax_receipt'] : '';
+
+			$abc						= 		array(
+
+												$row['full_name'],
+												
+												$row["card_holder_name"],
+
+                        						$row['transaction_amount'],
+                        
+												$row['date'],
+												
+												$row['purpose'],
+												
+												$row['payment_method'],
+
+												$receipt,
+
+												$row['honoree_name'],
+												
+												$row['home_full_address'],
+
+												$row['home_city'],
+
+												$row['home_state_province'],
+
+												$row['zip'],
+
+												$row['country_name'],
+												
+												$row['cellphone_number'],
+												
+												$row['email_address'],
+												
+												$row['transaction_status'],
+
+												$row['ref_id'],
+												
+												$row['donation_mode'],
+
+												$row['payment_frequency'],
+												
+												$row['reconciliation_status']
+												);
+												
+			fputcsv($output, $abc);
+		}
+
+			
+
+
+			}else if ($csv_type == "paypalcsvdownload") {
+			
+			
+			}else if ($csv_type == "payeezycsvdownload") {
+				echo "payeezycsvdownload";
+			}			
+			
+				
+	}
+
+
 
 }
 

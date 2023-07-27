@@ -62,6 +62,8 @@
 			    position: absolute;
 			    margin-left: -12px;
         	}
+
+        	
         </style>
         
         
@@ -137,11 +139,14 @@
         
         <script src="<?php echo base_url("assets/admincms/js/plugins/datatables/jquery.dataTables2.js");?>" type="text/javascript"></script>
         <script src="<?php echo base_url("assets/admincms/js/plugins/datatables/dataTables.bootstrap.js");?>" type="text/javascript"></script>
+        <!--   <script type="text/javascript" src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+          <script type="text/javascript" src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap.min.js"></script>
+ -->
+          
         
         
         
-        
-        <script type="text/javascript" language="javascript" class="init">
+       <script type="text/javascript" language="javascript" class="init">
 
 		
 		//
@@ -265,3 +270,5 @@
 		</script>
 
         <script src="<?php echo base_url("assets/admincms/js/site.js");?>" type="text/javascript"></script>
+      
+    

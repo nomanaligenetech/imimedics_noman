@@ -345,3 +345,74 @@ table.family_relationships .family-editing input, table.family_relationships .fa
 .form-control .selectize-input{
     border: none !important;
 }
+
+    .advanceSearchRow{ margin: 0px; }
+.advanceSearchRow .row{ margin: 0px;display: flex; flex-wrap: wrap;margin-bottom: 23px;}
+.advanceSearchRow .row:last-child{margin-bottom: 0px;}
+.advanceSearchRow .advanceFunctionContent{ display: flex; align-items: flex-start; flex-wrap: wrap; }
+.advanceSearchRow .advanceFunctionContent .dateContent{max-width: 300px; width: 100%; padding: 0px 28px 0px 18px;}
+.advanceSearchRow .advanceFunctionContent .detailContent{margin-top: -1px; max-width: calc(100% - 300px); width: 100%; padding: 0px 28px;position: relative;margin-bottom: 32px;}
+.advanceSearchRow .advanceFunctionContent .detailContent::before{content: ""; height: calc(100% + 42px); width: 1px; background: #E7E7E7; position: absolute; left: 0px; top: -10px;}
+.advanceSearchRow .advanceFunctionContent .detailContent form{display: flex; flex-wrap: wrap; justify-content: flex-end;}
+.advanceSearchRow .advanceFunctionContent .detailContent form .form-group{width: 100%;margin-bottom: 27px;}
+.advanceSearchRow .advanceFunctionContent .detailContent .values{max-width: 330px; margin-right: 15px; width: 100%;}
+.advanceSearchRow .advanceFunctionContent .detailContent .values label{margin-left: 0;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter{max-width: calc(100% - 345px); width: 100%; display: flex; align-items: flex-end; flex-wrap: wrap;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter label {margin-left: 0;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter .inputPara{max-width: calc(100% - 45px); width: 100%;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter .input-group-append{max-width: 33px; width: 100%;margin-left: 12px;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter .input-group-append .btn{margin: 0px; width: 100%; padding: 5.5px 0px; border-radius: 0px; background-color: #5E8BBA; border-color: #5E8BBA;}
+.advanceSearchRow .advanceFunctionContent .detailContent .parameter .input-group-append .btn.add-row-btn{background-color: #2561A0; border-color: #2561A0;}
+.advanceSearchRow .advanceFunctionContent .detailContent form .btn-primary{margin: 0px; display: block;max-width: 116px; width: 100%;border-radius: 0px;background-color: #5E8BBA; border-color: #5E8BBA;font-size: 14px; font-weight: 700;}
+.advanceSearchRow .advanceSearchReportTable{margin-top: 23px;position: relative;}
+.advanceSearchRow .advanceSearchReportTable::before{content: ""; width: calc(100% + 20px); height: 1px; background: #E7E7E7; position: absolute; top: -22px; left: -10px;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:first-child .col-xs-6:last-child{display: none;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:first-child .col-xs-6:first-child{padding: 0px 0px 0px 232px; width: 100%;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:first-child .col-xs-6:first-child label{font-size: 13px; text-transform: capitalize; color: #A6A6A6;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:first-child .col-xs-6:first-child label select{margin-right: 13px;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:last-child{justify-content: flex-end;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:last-child .col-xs-6:first-child{width: auto; padding: 0px; display: flex; align-items: center;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:last-child .col-xs-6:first-child .dataTables_info{font-size: 13px; color: #A6A6A6; padding: 0;}
+.advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:last-child .col-xs-6:last-child{width: auto;}
+
+
+
+.wrapper-dropdown { position: absolute; display: inline-block; min-width: 215px; padding: 0 5px 0 14px; border-radius: 0px; background: #5E8BBA; text-align: left; line-height: 33px; color: #444; cursor: pointer; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; z-index: 9999;
+    margin-top: -59px;
+    margin-left: 21px; 
+}
+.wrapper-dropdown span{font-size: 14px; font-weight: 700; color: #fff;}
+.wrapper-dropdown::after{ content: ""; background-color: rgba(0,0,0,0.10); width: 30px; position: absolute; height: 100%; right: 0px; z-index: -1; }
+.wrapper-dropdown::before { content: ''; position: absolute; top: 50%; right: 10px; margin-top: -2px; width: 0; height: 0; border-width: 6px 4.5px 0 4.5px; border-style: solid; border-color: #fff transparent; }
+.wrapper-dropdown.active::before { border-width: 0 6px 6px 6px; }
+.wrapper-dropdown .dropdown { position: absolute; top: 33px; right: 0; left: 0; margin: 0; padding: 0; list-style: none; border-radius: inherit; box-shadow: inherit; background: #fff; -webkit-transition: .5s ease; -moz-transition: .5s ease; -ms-transition: .5s ease; transition: .5s ease; -webkit-transform: scaleY(0); -moz-transform: scaleY(0); -ms-transform: scaleY(0); transform: scaleY(0); -webkit-transform-origin: top; -moz-transform-origin: top; -ms-transform-origin: top; transform-origin: top; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; opacity: 0; visibility: hidden; }
+.wrapper-dropdown .dropdown li { padding: 0 15px; border-bottom: 1px solid rgba(255, 255, 255, .2); overflow: hidden; -webkit-transition: .5s ease; -moz-transition: .5s ease; -ms-transition: .5s ease; transition: .5s ease; }
+.wrapper-dropdown .dropdown li:last-child { border-bottom: none; }
+.wrapper-dropdown .dropdown li:hover { background: rgba(197, 239, 247, .55); }
+.wrapper-dropdown.active .dropdown { opacity: 1; visibility: visible; -webkit-transform: scaleY(1); -moz-transform: scaleY(1); -ms-transform: scaleY(1); transform: scaleY(1); }
+
+
+
+/* Responsive Media */
+@media screen and (max-width:1280px) {
+    .advanceSearchRow .advanceFunctionContent .detailContent .values { max-width: 250px;}
+    .advanceSearchRow .advanceFunctionContent .detailContent .parameter { max-width: calc(100% - 265px);}
+
+    .table-responsive { width: 100%; margin-bottom: 15px; overflow-x: scroll; overflow-y: hidden; border: 1px solid #ddd;padding-top: 53px;}
+    .advanceSearchRow .advanceSearchReportTable .dataTables_wrapper .row:first-child .col-xs-6:first-child { padding: 0px 0px 0px 0px;}
+}
+
+@media screen and (max-width:1167px) {
+    .advanceSearchRow .advanceFunctionContent .detailContent .values{ width: 100%; max-width: 100%; margin: 0px 0px 10px;}
+    .advanceSearchRow .advanceFunctionContent .detailContent .parameter{width: 100%;max-width: 100%;}
+
+}
+
+@media screen and (max-width:667px) {
+    .advanceSearchRow .advanceFunctionContent .dateContent .bulk-receipt-download-form { margin: 5px 0px 30px; }
+    .advanceSearchRow .advanceFunctionContent .dateContent{max-width: 100%; padding: 0px 10px 0px 10px;}
+    .advanceSearchRow .advanceFunctionContent .detailContent{max-width: 100%; padding: 20px 10px 0px;}
+    .advanceSearchRow .advanceFunctionContent .detailContent::before { height: 1px; width: calc(100% + 20px); left: -10px; top: 0px; }
+}
+
+
