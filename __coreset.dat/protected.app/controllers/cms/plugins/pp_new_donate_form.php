@@ -1,5 +1,6 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
+
 class PP_New_Donate_Form extends C_frontend {
 
 	/**

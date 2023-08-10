@@ -569,6 +569,8 @@ EOT;
 
     public function view($is_ajax = 0)
     {
+
+    	// die;
         $data = $this->data;
         if ($is_ajax) {
 
@@ -792,6 +794,9 @@ EOT;
             $data["table_record"] = $this->imiconf_queries->fetch_records_imiconf("users", " ORDER BY id DESC ");
 
             $data["table_properties"] = $this->view_table_properties();
+
+
+           
             $this->load->view(ADMINCMS_TEMPLATE_VIEW, $data);
         }
 
